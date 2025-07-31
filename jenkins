@@ -1,0 +1,41 @@
+pipeline {
+  agent any
+  environment {
+    DOCKERHUB_DEV_REPO = 'san263/dec:tagname'
+    DOCKERHUB_PROD_REPO = san263/dev:tagname'
+    DOCKER_CREDENTIALS_ID = 'your-dockerhub-credentials-id'
+  }
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+    stage('Build Docker Image') {
+      steps {
+        script {
+          def imageTag = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+          sh "docker build -t ${imageTag} ."
+        }
+      }
+    }
+    stage('Push to DockerHub') {
+      steps {
+        script {
+          def imageTag = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+          def targetRepo = env.BRANCH_NAME == 'master' ? env.DOCKERHUB_PROD_REPO : env.DOCKERHUB_DEV_REPO
+          docker.withRegistry('', env.DOCKER_CREDENTIALS_ID) {
+            sh "docker tag ${imageTag} ${targetRepo}:${imageTag}"
+            sh "docker push ${targetRepo}:${imageTag}"
+          }
+        }
+      }
+    }
+    stage('Deploy') {
+      steps {
+        echo "Deploying ${env.BRANCH_NAME} branch..."
+        // Add Kubernetes or Docker Compose deployment steps here
+      }
+    }
+  }
+}
